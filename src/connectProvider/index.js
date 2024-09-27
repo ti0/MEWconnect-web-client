@@ -1,10 +1,9 @@
-/* eslint-disable */
 import PopUpHandler from '../connectWindow/popUpHandler';
 import Initiator from '../connectClient/MewConnectInitiator';
 import Web3 from 'web3';
 import MEWProvider from './web3Provider/web3-provider/index';
 import MEWconnectWallet from './web3Provider/MEWconnect/index';
-import Networks from './web3Provider/networks/index';
+import * as Networks from './web3Provider/networks/types';
 import url from 'url';
 import EventEmitter from 'events';
 import EventNames from './web3Provider/web3-provider/events';
@@ -12,7 +11,7 @@ import { Transaction } from 'ethereumjs-tx';
 import { messageConstants } from '../messages';
 import debugLogger from 'debug';
 import PopUpCreator from '../connectWindow/popUpCreator';
-import { nativeCheck, mobileCheck } from './platformDeepLinking';
+import { nativeCheck } from './platformDeepLinking';
 import { DISCONNECTED, CONNECTING, CONNECTED } from '../config';
 import packageJson from '../../package.json';
 
@@ -22,41 +21,25 @@ const debugErrors = debugLogger('MEWconnectError');
 let state = {
   wallet: null
 };
-
-const infuraUrlFormater = (name, infuraId) => {
-  return `wss://${name}.infura.io/ws/v3/${infuraId}`;
-};
 const eventHub = new EventEmitter();
 let popUpCreator = {};
-const recentDataRecord = [];
 
 export default class Integration extends EventEmitter {
   constructor(options = {}) {
     super();
-    if (window.web3) {
-      if (window.web3.currentProvider) {
-        if (
-          window.web3.currentProvider.isMewConnect ||
-          window.web3.currentProvider.isTrust
-        ) {
-          this.runningInApp = true;
-          state.web3Provider = window.web3.currentProvider;
-        } else {
-          this.runningInApp = false;
-        }
+    if (window.ethereum) {
+      if (window.ethereum.isMewConnect || window.ethereum.isTrust) {
+        this.runningInApp = true;
+        state.web3Provider = window.ethereum;
       } else {
         this.runningInApp = false;
       }
     } else {
       this.runningInApp = false;
     }
-
     this.windowClosedError = options.windowClosedError || false;
     this.subscriptionNotFoundNoThrow =
       options.subscriptionNotFoundNoThrow || true;
-    // eslint-disable-next-line
-    this.infuraId = !!options.infuraId ? options.infuraId : false;
-
     this.CHAIN_ID = options.chainId || 1;
     this.RPC_URL = options.rpcUrl || false;
     this.noUrlCheck = options.noUrlCheck || false;
@@ -79,27 +62,19 @@ export default class Integration extends EventEmitter {
 
   formatNewNetworks(newNetwork) {
     return {
-      type: {
-        name: newNetwork.name,
-        name_long: newNetwork.name_long || newNetwork.name,
-        homePage: newNetwork.homePage || '',
-        blockExplorerTX: newNetwork.blockExplorerTX || '',
-        blockExplorerAddr: newNetwork.blockExplorerAddr || '',
-        chainID: newNetwork.chainId
-          ? newNetwork.chainId
-          : newNetwork.chainID
-          ? newNetwork.chainID
-          : this.CHAIN_ID,
-        tokens: newNetwork.tokens || [],
-        contracts: [],
-        currencyName: newNetwork.currencyName || newNetwork.name
-      },
-      service: newNetwork.serviceName || newNetwork.name,
-      url: newNetwork.url || this.RPC_URL,
-      port: 443,
-      auth: false,
-      username: '',
-      password: ''
+      name: newNetwork.name,
+      name_long: newNetwork.name_long || newNetwork.name,
+      homePage: newNetwork.homePage || '',
+      blockExplorerTX: newNetwork.blockExplorerTX || '',
+      blockExplorerAddr: newNetwork.blockExplorerAddr || '',
+      chainID: newNetwork.chainId
+        ? newNetwork.chainId
+        : newNetwork.chainID
+        ? newNetwork.chainID
+        : this.CHAIN_ID,
+      tokens: newNetwork.tokens || [],
+      contracts: [],
+      currencyName: newNetwork.currencyName || newNetwork.name
     };
   }
 
@@ -109,29 +84,25 @@ export default class Integration extends EventEmitter {
       const additional = newNetworks
         .map(this.formatNewNetworks)
         .reduce((acc, curr) => {
-          acc[curr.type.name] = curr;
+          acc[curr.name] = curr;
         }, {});
-      networks = { ...networks, ...additional };
+      networks = Object.assign(networks, additional);
+      this.networks = networks;
     } catch (e) {
-      // eslint-disable-next-line
       console.error(e);
     }
-    return Object.keys(networks).reduce(
-      (acc, curr) => {
-        if (networks[curr].length === 0) return acc;
-        acc.push({
-          name:
-            networks[curr][0].type.name_long === 'Ethereum'
-              ? 'mainnet'
-              : networks[curr][0].type.name_long.toLowerCase(),
-          chainId: networks[curr][0].type.chainID,
-          key: networks[curr][0].type.name
-        });
-        this.knownNetworks.add(networks[curr][0].type.chainID);
-        return acc;
-      },
-      [{ name: 'mainnet', chainId: 1, key: 'ETH' }]
-    );
+    return Object.keys(networks).reduce((acc, curr) => {
+      acc.push({
+        name:
+          networks[curr].name_long === 'Ethereum'
+            ? 'mainnet'
+            : networks[curr].name_long.toLowerCase(),
+        chainId: networks[curr].chainID,
+        key: networks[curr].name
+      });
+      this.knownNetworks.add(networks[curr].chainID);
+      return acc;
+    }, []);
   }
 
   showNotifierDemo(details) {
@@ -140,7 +111,7 @@ export default class Integration extends EventEmitter {
         type: messageConstants.sent,
         hash:
           '0x543284135d7821e0271272df721101420003cb0e43e8c2e2eed1451cdb571fa4',
-        explorerPath: state.network.type.blockExplorerTX
+        explorerPath: state.network.blockExplorerTX
       });
     } else {
       this.popUpHandler.showNotice(details);
@@ -166,6 +137,7 @@ export default class Integration extends EventEmitter {
     if (state.wallet) {
       return state.wallet;
     }
+    return null;
   }
 
   enable() {
@@ -173,7 +145,7 @@ export default class Integration extends EventEmitter {
       MEWconnectWallet.setConnectionState(DISCONNECTED);
     });
     if (this.runningInApp) {
-      return new Promise((resolve, reject) => {
+      return new Promise(resolve => {
         state.web3Provider
           .request({
             method: 'eth_requestAccounts',
@@ -236,24 +208,19 @@ export default class Integration extends EventEmitter {
 
       if (state.web3 && state.wallet) {
         await state.web3.eth.getTransactionCount(
-          state.wallet.getChecksumAddressString()
+          state.wallet.getAddressString()
         );
       }
       if (state.web3Provider && state.wallet) {
         if (state.web3Provider.accountsChanged) {
           state.web3Provider.emit('accountsChanged', [
-            state.wallet.getChecksumAddressString()
+            state.wallet.getAddressString()
           ]);
-          // state.web3Provider.accountsChanged([
-          //   state.wallet.getChecksumAddressString()
-          // ]);
         }
-        eventHub.emit('accounts_available', [
-          state.wallet.getChecksumAddressString()
-        ]);
+        eventHub.emit('accounts_available', [state.wallet.getAddressString()]);
       }
 
-      resolve([state.wallet.getChecksumAddressString()]);
+      resolve([state.wallet.getAddressString()]);
     });
   }
 
@@ -278,36 +245,25 @@ export default class Integration extends EventEmitter {
     return 'ETH';
   }
 
-  makeWeb3Provider(
-    CHAIN_ID = this.CHAIN_ID,
-    RPC_URL = this.RPC_URL,
-    _noCheck = this.noUrlCheck
-  ) {
-    let chainError = false;
+  makeWeb3Provider(CHAIN_ID = this.CHAIN_ID, RPC_URL = this.RPC_URL) {
     let web3Provider;
     try {
       if (this.runningInApp) {
         if (state.web3Provider) {
           web3Provider = state.web3Provider;
         } else {
-          web3Provider = window.web3.currentProvider;
+          web3Provider = window.ethereum;
         }
       } else {
-        let chain, defaultNetwork;
         if (this.knownNetworks.has(CHAIN_ID)) {
-          chain = this.identifyChain(CHAIN_ID || 1);
-          defaultNetwork = Networks[chain.key][0];
-          state.network = defaultNetwork;
+          const chain = this.identifyChain(CHAIN_ID || 1);
+          state.network = this.networks[chain.key];
         } else {
-          chain = { name: 'unknown' };
-          defaultNetwork = this.formatNewNetworks({ name: 'unknown' });
-          state.network = defaultNetwork;
+          throw new Error(
+            'Unknown network, please add your network to the constructor'
+          );
         }
-
-        if (this.infuraId && !this.RPC_URL) {
-          RPC_URL = infuraUrlFormater(chain.name, this.infuraId);
-        }
-        const hostUrl = url.parse(RPC_URL || defaultNetwork.url);
+        const hostUrl = url.parse(RPC_URL);
         const options = {
           subscriptionNotFoundNoThrow: this.subscriptionNotFoundNoThrow
         };
@@ -318,17 +274,6 @@ export default class Integration extends EventEmitter {
           throw Error(
             'Invalid rpc endpoint supplied to MEWconnect during setup'
           );
-        }
-        if (!_noCheck && !this.infuraId) {
-          if (
-            !hostUrl.hostname.includes(chain.name) &&
-            hostUrl.hostname.includes('infura.io')
-          ) {
-            chainError = true;
-            throw Error(
-              `ChainId: ${CHAIN_ID} and infura endpoint ${hostUrl.hostname} don't match`
-            );
-          }
         }
         const parsedUrl = `${hostUrl.protocol}//${
           hostUrl.hostname ? hostUrl.hostname : hostUrl.host
@@ -363,12 +308,7 @@ export default class Integration extends EventEmitter {
       return web3Provider;
     } catch (e) {
       debugErrors('makeWeb3Provider ERROR');
-      if (chainError) {
-        throw e;
-      } else {
-        // eslint-disable-next-line
-        console.error(e);
-      }
+      console.error(e);
     }
   }
 
@@ -487,7 +427,6 @@ export default class Integration extends EventEmitter {
   }
 
   setupListeners() {
-    const transactionCache = [];
     eventHub.on(EventNames.SHOW_TX_CONFIRM_MODAL, (tx, resolve) => {
       // this.responseFunction = resolve;
       if (!state.wallet) {
@@ -496,20 +435,18 @@ export default class Integration extends EventEmitter {
         );
       } else {
         this.popUpHandler.showNoticePersistentEnter(messageConstants.approveTx);
-
         state.wallet
           .signTransaction(tx)
           .then(_response => {
+            if (!_response) return;
             if (!state.knownHashes.includes(_response.tx.hash)) {
               state.knownHashes.push(_response.tx.hash);
-
               this.popUpHandler.showNoticePersistentExit();
               resolve(_response);
             }
           })
           .catch(err => {
             this.popUpHandler.showNoticePersistentExit();
-
             if (err.reject) {
               this.popUpHandler.noShow();
               setTimeout(() => {
@@ -630,7 +567,7 @@ export default class Integration extends EventEmitter {
         {
           type: messageConstants.sent,
           hash: hash,
-          explorerPath: state.network.type.blockExplorerTX
+          explorerPath: state.network.blockExplorerTX
         },
         10000
       );
@@ -640,7 +577,7 @@ export default class Integration extends EventEmitter {
       this.lastHash = null;
       this.popUpHandler.showNotice(messageConstants.complete);
     });
-    eventHub.on('Error', e => {
+    eventHub.on('Error', () => {
       state.knownHashes = [];
       debugErrors('SendTx:Error ERROR');
       if (this.lastHash !== null) {
@@ -648,7 +585,7 @@ export default class Integration extends EventEmitter {
           {
             type: messageConstants.failed,
             hash: this.lastHash,
-            explorerPath: state.network.type.blockExplorerTX
+            explorerPath: state.network.blockExplorerTX
           },
           10000
         );
@@ -657,14 +594,14 @@ export default class Integration extends EventEmitter {
       }
     });
 
-    eventHub.on(EventNames.GET_ENCRYPTED_PUBLIC_KEY, ( resolve) => {
+    eventHub.on(EventNames.GET_ENCRYPTED_PUBLIC_KEY, (params, resolve) => {
       if (!state.wallet) {
         this.popUpHandler.showNoticePersistentEnter(
           messageConstants.notConnected
         );
       } else {
         const mewConnect = state.wallet.getConnection();
-        mewConnect.sendRtcMessage('eth_getEncryptionPublicKey', '');
+        mewConnect.sendRtcMessage('eth_getEncryptionPublicKey', params);
         mewConnect.once('eth_getEncryptionPublicKey', data => {
           resolve(data);
         });
@@ -694,6 +631,20 @@ export default class Integration extends EventEmitter {
         const mewConnect = state.wallet.getConnection();
         mewConnect.sendRtcMessage('eth_signTypedData_v3', params);
         mewConnect.once('eth_signTypedData_v3', data => {
+          resolve(data);
+        });
+      }
+    });
+
+    eventHub.on(EventNames.SIGN_TYPE_DATA_V4, (params, resolve) => {
+      if (!state.wallet) {
+        this.popUpHandler.showNoticePersistentEnter(
+          messageConstants.notConnected
+        );
+      } else {
+        const mewConnect = state.wallet.getConnection();
+        mewConnect.sendRtcMessage('eth_signTypedData_v4', params);
+        mewConnect.once('eth_signTypedData_v4', data => {
           resolve(data);
         });
       }

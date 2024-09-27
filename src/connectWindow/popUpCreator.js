@@ -1,4 +1,3 @@
-/* eslint-disable */
 import QrCode from 'qrcode';
 import {
   appStoreButton,
@@ -17,18 +16,10 @@ import {
   noticetext,
   windowInformer
 } from './popupWindowDesign';
-import debugLogger from 'debug';
 import { ANDROID_LINK, IOS_LINK } from '../config';
 import EventEmitter from 'events';
 
-// TODO add debug logging
-const debug = debugLogger('MEWconnect:popup-window');
-// const debugConnectionState = debugLogger('MEWconnect:connection-state');
-
-const selectors = {
-  '#qr-code-display-container-mew': '#qr-code-display-container-mew'
-}
-export default class PopUpCreator extends EventEmitter{
+export default class PopUpCreator extends EventEmitter {
   constructor() {
     super();
     this.sessionId = '';
@@ -113,7 +104,7 @@ export default class PopUpCreator extends EventEmitter{
       this.closePopupWindow();
       this.windowClosedListener();
     } catch (e) {
-      console.error(e)
+      console.error(e);
     }
   }
 
@@ -123,61 +114,70 @@ export default class PopUpCreator extends EventEmitter{
     notify.className = 'hidden';
   }
 
-  showConnecting(){
+  showConnecting() {
     // todo: add existance checks because these are destroyed on a good connection
-    document.querySelector('#qr-code-display-container-mew').classList.add('hidden');
-    document.querySelector('#qr-code-connecting-mew').classList.remove('hidden');
+    document
+      .querySelector('#qr-code-display-container-mew')
+      .classList.add('hidden');
+    document
+      .querySelector('#qr-code-connecting-mew')
+      .classList.remove('hidden');
   }
 
-  hideConnecting(){
-    document.querySelector('#qr-code-display-container-mew').classList.remove('hidden');
+  hideConnecting() {
+    document
+      .querySelector('#qr-code-display-container-mew')
+      .classList.remove('hidden');
     document.querySelector('#qr-code-connecting-mew').classList.add('hidden');
   }
 
-  showRetry(callback){
+  showRetry(callback) {
     const retry = document.getElementById('retry-button-mew');
-    const retryOnModal = document.getElementById('refresh-container')
-    if(document.querySelector('#refresh-container')) document.querySelector('#refresh-container').classList.remove('hidden');
-    if(document.querySelector('#retry-button-mew'))  document.querySelector('#retry-button-mew').classList.remove('hidden');
-    const eventHandler = evt => {
-      if(document.querySelector('#qr-code-display-container-mew')) document.querySelector('#qr-code-display-container-mew').classList.remove('hidden');
-      if(document.querySelector('#qr-code-connecting-mew')) document.querySelector('#qr-code-connecting-mew').classList.add('hidden');
-      if(document.querySelector('#retry-button-mew')) document.querySelector('#retry-button-mew').classList.add('hidden');
-      if(document.querySelector('#refresh-container')) document.querySelector('#refresh-container').classList.add('hidden');
-      if(retry) retry.removeEventListener(
-        'click',
-        eventHandler,
-        {passive : false,
-          once: true}
-      );
-      if(retryOnModal) retryOnModal.removeEventListener(
-        'click',
-        eventHandler,
-        {passive : false,
-          once: true}
-      );
+    const retryOnModal = document.getElementById('refresh-container');
+    if (document.querySelector('#refresh-container'))
+      document.querySelector('#refresh-container').classList.remove('hidden');
+    if (document.querySelector('#retry-button-mew'))
+      document.querySelector('#retry-button-mew').classList.remove('hidden');
+    const eventHandler = () => {
+      if (document.querySelector('#qr-code-display-container-mew'))
+        document
+          .querySelector('#qr-code-display-container-mew')
+          .classList.remove('hidden');
+      if (document.querySelector('#qr-code-connecting-mew'))
+        document
+          .querySelector('#qr-code-connecting-mew')
+          .classList.add('hidden');
+      if (document.querySelector('#retry-button-mew'))
+        document.querySelector('#retry-button-mew').classList.add('hidden');
+      if (document.querySelector('#refresh-container'))
+        document.querySelector('#refresh-container').classList.add('hidden');
+      if (retry)
+        retry.removeEventListener('click', eventHandler, {
+          passive: false,
+          once: true
+        });
+      if (retryOnModal)
+        retryOnModal.removeEventListener('click', eventHandler, {
+          passive: false,
+          once: true
+        });
       callback();
-    }
-    if(retry) retry.addEventListener(
-      'click',
-      eventHandler,
-      {passive : false,
-        once: true}
-    );
-    if(retryOnModal) retryOnModal.addEventListener(
-      'click',
-      eventHandler,
-      {passive : false,
-        once: true}
-    );
+    };
+    if (retry)
+      retry.addEventListener('click', eventHandler, {
+        passive: false,
+        once: true
+      });
+    if (retryOnModal)
+      retryOnModal.addEventListener('click', eventHandler, {
+        passive: false,
+        once: true
+      });
   }
 
   createQrCodeModal() {
-    // this.popupWindowOpen = true;
     const modalId = 'Mew-Wallet-Modal';
-    console.log(document.getElementById(modalId)); // todo remove dev item
-    if(!!document.getElementById(modalId)){
-      debug('DONT NEED NEW'); // todo remove dev item
+    if (document.getElementById(modalId)) {
       return;
     }
     const css = document.createElement('style');
@@ -204,7 +204,7 @@ export default class PopUpCreator extends EventEmitter{
     this.container.appendChild(div);
   }
 
-  hideDialog(evt) {
+  hideDialog() {
     if (
       document.querySelector('.mew-wallet-modal') &&
       document.querySelector('.mew-wallet-modal-container-mew-modal')
@@ -215,11 +215,13 @@ export default class PopUpCreator extends EventEmitter{
       document
         .querySelector('.mew-wallet-modal-container-mew-modal')
         .classList.remove('is-visible');
-      document.querySelector('.modal-dialog').classList.remove('is-visible');
+      document
+        .querySelector('.mew-wallet-modal-dialog')
+        .classList.remove('is-visible');
     }
   }
 
-  showDialog(evt) {
+  showDialog() {
     if (typeof this.popupWindowOpen !== 'boolean') return;
     this.popupWindowOpen = true;
     if (
@@ -230,7 +232,9 @@ export default class PopUpCreator extends EventEmitter{
       document
         .querySelector('.mew-wallet-modal-container-mew-modal')
         .classList.add('is-visible');
-      document.querySelector('.modal-dialog').classList.add('is-visible');
+      document
+        .querySelector('.mew-wallet-modal-dialog')
+        .classList.add('is-visible');
     }
   }
 
@@ -250,37 +254,41 @@ export default class PopUpCreator extends EventEmitter{
         // throw Error('No connection string supplied to popup window');
       }
 
-    this.createQrCodeModal();
-    this.createWindowInformer();
+      this.createQrCodeModal();
+      this.createWindowInformer();
 
-    const element = document.getElementById('canvas-for-mewconnect-qr-code');
-    QrCode.toCanvas(element, qrcode, { errorCorrectionLevel: 'H', width: 200 });
+      const element = document.getElementById('canvas-for-mewconnect-qr-code');
+      QrCode.toCanvas(element, qrcode, {
+        errorCorrectionLevel: 'H',
+        width: 200
+      });
 
-    const background = document.getElementById('mew-wallet-modal');
-    const background2 = document.getElementById('mew-wallet-modal-container');
-    const dialog = document.getElementById('mew-mobile-modal-dialog');
-    document.getElementById('close-mew-modal').addEventListener('click', () => {
-      this.cancelConnectionSetup();
-    });
-      console.log(background, background2, dialog); // todo remove dev item
-    background.addEventListener('click', evt => {
-      this.hideDialog();
-    });
-    background2.addEventListener('click', evt => {
-      this.hideDialog(evt);
-    });
-    dialog.addEventListener(
-      'click',
-      evt => {
-        if (this.popupWindowOpen) {
-          evt.stopPropagation();
-        }
-      },
-      false
-    );
-    this.showWindowInformer();
-    this.popupWindow = this.container;
-    this.popupWindowOpen = true;
+      const background = document.getElementById('mew-wallet-modal');
+      const background2 = document.getElementById('mew-wallet-modal-container');
+      const dialog = document.getElementById('mew-mobile-modal-dialog');
+      document
+        .getElementById('close-mew-modal')
+        .addEventListener('click', () => {
+          this.cancelConnectionSetup();
+        });
+      background.addEventListener('click', () => {
+        this.hideDialog();
+      });
+      background2.addEventListener('click', evt => {
+        this.hideDialog(evt);
+      });
+      dialog.addEventListener(
+        'click',
+        evt => {
+          if (this.popupWindowOpen) {
+            evt.stopPropagation();
+          }
+        },
+        false
+      );
+      this.showWindowInformer();
+      this.popupWindow = this.container;
+      this.popupWindowOpen = true;
 
       if (qrcode === '') {
         this.showQrError();
@@ -306,26 +314,22 @@ export default class PopUpCreator extends EventEmitter{
   }
 
   closePopupWindow() {
-    try { // this.hideDialog();
+    try {
       this.popupWindowOpen = null;
-      document.querySelector('#Attach-Mew-Wallet-Modal').dispatchEvent(new Event('mewModalClosed'));
+      document
+        .querySelector('#Attach-Mew-Wallet-Modal')
+        .dispatchEvent(new Event('mewModalClosed'));
       document.querySelector('#Attach-Mew-Wallet-Modal').replaceChildren();
-
-      // document.querySelector('#Attach-Mew-Wallet-Modal').classList.add('hidden');
     } catch (e) {
       this.popupWindowOpen = null;
       document.querySelector('#Attach-Mew-Wallet-Modal').innerHTML = '';
     }
   }
 
-  handleBeforeUnload() {
-    // this.closePopupWindow();
-  }
+  handleBeforeUnload() {}
   resetSetup() {
     this.popupWindowOpen = null;
     this.hideNotifier();
     this.closePopupWindow();
-    // document.getElementById('Attach-Mew-Wallet-Modal');
-
   }
 }

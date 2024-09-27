@@ -6,24 +6,28 @@ const debug = debugLogger('MEWconnectWeb3');
 const debugErrors = debugLogger('MEWconnectError');
 
 export default async ({ payload, eventHub }, res, next) => {
-  if (payload.method !== 'eth_getEncryptionPublicKey') return next();
+  if (
+    payload.method !== 'eth_signTypedData_v4' &&
+    payload.method !== 'eth_signTypedData'
+  )
+    return next();
   try {
     eventHub.emit(
-      EventNames.GET_ENCRYPTED_PUBLIC_KEY,
-      payload.params,
+      EventNames.SIGN_TYPE_DATA_V4,
+      payload.params[1],
       _response => {
         if (_response.reject) {
-          debug('USER DECLINED SIGN TRANSACTION');
+          debug('USER DECLINED SIGN TYPED DATA');
           res(toError(payload.id, 'User Rejected Request', 4001));
           return;
         }
-        debug('eth_getEncryptionPublicKey response', payload.method, _response);
+        debug('eth_signTypedData_v4 response', payload.method, _response);
         res(null, toPayload(payload.id, _response));
       }
     );
   } catch (e) {
     debugErrors(e);
-    debugErrors('Error: eth_getEncryptionPublicKey', e);
+    debugErrors('Error: eth_signTypedData_v3', e);
     res(e);
   }
 };
